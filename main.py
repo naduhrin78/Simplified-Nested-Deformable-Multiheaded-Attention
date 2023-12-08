@@ -2,6 +2,7 @@ import torch
 from torch.utils.data import DataLoader, random_split
 import matplotlib.pyplot as plt
 import numpy as np
+import time
 
 from dataloader import CelebADataset
 from network_luna_bottleneck import Luna_Net
@@ -33,7 +34,9 @@ optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
 for epoch in range(num_epochs):
     model.train()
+    cumulative_time = 0
     for i, (images, masks) in enumerate(train_loader):
+        start_time = time.time()
         images, masks = images.to(device), masks.to(device)
 
         _, outputs = model(images, masks)
@@ -43,11 +46,13 @@ for epoch in range(num_epochs):
         loss.backward()
         optimizer.step()
 
-        print(i)
+        end_time = time.time()
+        elapsed_time = (end_time - start_time) / 60
         if (i + 1) % 10 == 0:
             print(
-                f"Epoch [{epoch+1}/{num_epochs}], Step [{i+1}/{len(train_loader)}], Loss: {loss.item():.4f}"
+                f"Epoch [{epoch+1}/{num_epochs}], Step [{i+1}/{len(train_loader)}], Loss: {loss.item():.4f}, Time Elapsed: {cumulative_time:.2f} mins"
             )
+            cumulative_time = 0
 
 model.eval()
 test_loss = 0
