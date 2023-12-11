@@ -10,7 +10,7 @@ from network_luna_bottleneck import Luna_Net
 from discriminator import Discriminator
 from loss import CombinedLoss
 
-batch_size = 8
+batch_size = 32
 learning_rate = 2 * 10e-4
 num_epochs = 20
 dataset_path = "dataset/CelebA-HQ"
@@ -121,7 +121,9 @@ for epoch in range(start_epoch, num_epochs):
             for i, (image, mask) in enumerate(zip(test_images, test_masks)):
                 if i >= 10:
                     break
-                inpainted_img = gen(image.unsqueeze(0).to(device), mask.unsqueeze(0).to(device))
+                _, inpainted_img = gen(
+                    image.unsqueeze(0).to(device), mask.unsqueeze(0).to(device)
+                )
                 inpainted_img = inpainted_img.squeeze(0).cpu().detach()
                 plt.figure()
                 plt.subplot(1, 2, 1)
