@@ -113,6 +113,26 @@ for epoch in range(start_epoch, num_epochs):
             checkpoint_path,
         )
 
+    if (epoch + 1) % 5 == 0:
+        gen.eval()
+        with torch.no_grad():
+            i = 0
+            for image, mask in test_loader:
+                if i >= 10:
+                    break
+                i += 1
+                inpainted_img = gen(image.unsqueeze(0).to(device))
+                inpainted_img = inpainted_img.squeeze(0).cpu().detach()
+                plt.figure()
+                plt.subplot(1, 2, 1)
+                plt.imshow(np.transpose(image.cpu().numpy(), (1, 2, 0)))
+                plt.title("Corrupted Image")
+                plt.subplot(1, 2, 2)
+                plt.imshow(np.transpose(inpainted_img.numpy(), (1, 2, 0)))
+                plt.title("Inpainted Image")
+                plt.savefig(f"epoch_{epoch+1}_image_{i}.png")
+                plt.close()
+
 gen.eval()
 test_loss = 0
 with torch.no_grad():
@@ -124,17 +144,3 @@ with torch.no_grad():
 
 avg_test_loss = test_loss / len(test_loader)
 print(f"Average Test Loss: {avg_test_loss:.4f}")
-
-for i, (image, mask) in enumerate(zip(images, masks)):
-    if i >= 10:
-        break
-    inpainted_img = gen(image.unsqueeze(0).to(device))
-    inpainted_img = inpainted_img.squeeze(0).cpu().detach()
-    plt.figure()
-    plt.subplot(1, 2, 1)
-    plt.imshow(np.transpose(image.cpu().numpy(), (1, 2, 0)))  # Adjust as necessary
-    plt.title("Corrupted Image")
-    plt.subplot(1, 2, 2)
-    plt.imshow(np.transpose(inpainted_img.numpy(), (1, 2, 0)))  # Adjust as necessary
-    plt.title("Inpainted Image")
-    plt.show()
