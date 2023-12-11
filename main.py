@@ -35,7 +35,7 @@ disc = Discriminator()
 disc.to(device)
 
 criterion = CombinedLoss().to(device)
-optimizer_G = torch.optim.Adam(gen.parameters(), lr=learning_rate)
+optimizer_G = torch.optim.Adam(gen.parameters(), lr=learning_rate, betas=(0.5, 0.99))
 optimizer_D = torch.optim.Adam(disc.parameters(), lr=learning_rate)
 
 for epoch in range(num_epochs):
