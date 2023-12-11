@@ -16,7 +16,7 @@ dataset_path = "dataset/CelebA-HQ"
 mask_path = "dataset/irregular_masks"
 in_channels = 4
 out_channels = 3
-factor = 1
+factor = 8
 
 dataset = CelebADataset(image_dir=dataset_path, mask_dir=mask_path)
 train_size = int(0.9 * len(dataset))
