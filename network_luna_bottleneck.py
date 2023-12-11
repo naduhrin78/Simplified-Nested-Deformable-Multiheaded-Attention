@@ -8,28 +8,20 @@ class MDTA(nn.Module):
     def __init__(self, channels, num_heads):
         super(MDTA, self).__init__()
         self.num_heads = num_heads
-
-        self.kv = nn.Conv2d(channels, channels * 2, kernel_size=1, bias=False)
-        self.kv_conv = nn.Conv2d(
-            channels * 2,
-            channels * 2,
-            kernel_size=3,
-            padding=1,
-            groups=channels * 2,
-            bias=False,
-        )
+        self.kv = nn.Conv2d(channels, channels, kernel_size=1, bias=False)
+        self.kv_conv = DeformableConv2d(channels, channels)
 
     def forward(self, x, q):
         b, c, h, w = x.shape
-        k, v = self.kv_conv(self.kv(x)).chunk(2, dim=1)
+        k = self.kv_conv(self.kv(x)).reshape(b, self.num_heads, -1, h * w)
 
         q = q.reshape(b, self.num_heads, -1, h * w)
-        k = k.reshape(b, self.num_heads, -1, h * w)
-        v = v.reshape(b, self.num_heads, -1, h * w)
-        q, k = F.normalize(q, dim=-1), F.normalize(k, dim=-1)
+        k = F.normalize(k, dim=-1)
 
-        attn = torch.softmax(torch.matmul(q, k.transpose(-2, -1).contiguous()), dim=-1)
-        out = torch.matmul(attn, v).reshape(b, -1, h, w)
+        attn = torch.softmax(torch.matmul(q, k.transpose(-2, -1)), dim=-1)
+        out = torch.matmul(attn, x.reshape(b, self.num_heads, -1, h * w)).reshape(
+            b, -1, h, w
+        )
         return out, q
 
 
