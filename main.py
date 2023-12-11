@@ -3,6 +3,7 @@ from torch.utils.data import DataLoader, random_split
 import matplotlib.pyplot as plt
 import numpy as np
 import time
+import os
 
 from dataloader import CelebADataset
 from network_luna_bottleneck import Luna_Net
@@ -38,7 +39,19 @@ criterion = CombinedLoss().to(device)
 optimizer_G = torch.optim.Adam(gen.parameters(), lr=learning_rate, betas=(0.5, 0.99))
 optimizer_D = torch.optim.Adam(disc.parameters(), lr=learning_rate)
 
-for epoch in range(num_epochs):
+# Checkpoints for saving our ass
+checkpoint_path = "latest_checkpoint.pth"
+if os.path.isfile(checkpoint_path):
+    checkpoint = torch.load(checkpoint_path)
+    gen.load_state_dict(checkpoint["gen_state_dict"])
+    disc.load_state_dict(checkpoint["disc_state_dict"])
+    optimizer_G.load_state_dict(checkpoint["optimizer_G_state_dict"])
+    optimizer_D.load_state_dict(checkpoint["optimizer_D_state_dict"])
+    start_epoch = checkpoint["epoch"] + 1
+else:
+    start_epoch = 0
+
+for epoch in range(start_epoch, num_epochs):
     gen.train()
     cumulative_time = 0
     for i, (images, masks) in enumerate(train_loader):
@@ -87,6 +100,18 @@ for epoch in range(num_epochs):
                 Disc Loss: {discriminator_loss.item():.4f}, Time Elapsed: {cumulative_time:.2f} mins"
             )
             cumulative_time = 0
+
+    if (epoch + 1) % 10 == 0 or epoch == num_epochs - 1:
+        torch.save(
+            {
+                "epoch": epoch,
+                "gen_state_dict": gen.state_dict(),
+                "disc_state_dict": disc.state_dict(),
+                "optimizer_G_state_dict": optimizer_G.state_dict(),
+                "optimizer_D_state_dict": optimizer_D.state_dict(),
+            },
+            checkpoint_path,
+        )
 
 gen.eval()
 test_loss = 0
