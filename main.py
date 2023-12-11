@@ -26,6 +26,8 @@ train_dataset, test_dataset = random_split(dataset, [train_size, test_size])
 train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
 test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 
+test_images, test_masks = next(iter(test_loader))
+
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(device)
 
@@ -116,12 +118,10 @@ for epoch in range(start_epoch, num_epochs):
     if (epoch + 1) % 5 == 0:
         gen.eval()
         with torch.no_grad():
-            i = 0
-            for image, mask in test_loader:
+            for i, (image, mask) in enumerate(zip(test_images, test_masks)):
                 if i >= 10:
                     break
-                i += 1
-                inpainted_img = gen(image.unsqueeze(0).to(device))
+                inpainted_img = gen(image.unsqueeze(0).to(device), mask.unsqueeze(0).to(device))
                 inpainted_img = inpainted_img.squeeze(0).cpu().detach()
                 plt.figure()
                 plt.subplot(1, 2, 1)
