@@ -44,9 +44,16 @@ class CelebADataset(Dataset):
         image = Image.open(img_path).convert("RGB")
 
         # Load a random mask
-        mask_name = random.choice(self.masks)
-        mask_path = os.path.join(self.mask_dir, mask_name)
-        mask = Image.open(mask_path).convert("L")
+        mask = None
+
+        while mask is None:
+            mask_name = random.choice(self.masks)
+            mask_path = os.path.join(self.mask_dir, mask_name)
+
+            try:
+                mask = Image.open(mask_path).convert("L")
+            except:
+                continue
 
         # Transform
         seed = np.random.randint(2147483647)

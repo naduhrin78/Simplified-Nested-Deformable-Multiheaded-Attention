@@ -6,10 +6,10 @@ import time
 
 from dataloader import CelebADataset
 from network_luna_bottleneck import Luna_Net
-from utils import VGGPerceptualLoss
+from loss import CombinedLoss
 
 batch_size = 8
-learning_rate = 0.001
+learning_rate = 2 * 10e-4
 num_epochs = 20
 dataset_path = "dataset/CelebA-HQ"
 mask_path = "dataset/irregular_masks"
@@ -29,7 +29,7 @@ print(device)
 model = Luna_Net(in_channels=in_channels, out_channels=out_channels, factor=factor)
 model.to(device)
 
-criterion = VGGPerceptualLoss().to(device)
+criterion = CombinedLoss().to(device)
 optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
 for epoch in range(num_epochs):
@@ -48,6 +48,8 @@ for epoch in range(num_epochs):
 
         end_time = time.time()
         elapsed_time = (end_time - start_time) / 60
+
+        cumulative_time += elapsed_time
         if (i + 1) % 10 == 0:
             print(
                 f"Epoch [{epoch+1}/{num_epochs}], Step [{i+1}/{len(train_loader)}], Loss: {loss.item():.4f}, Time Elapsed: {cumulative_time:.2f} mins"
