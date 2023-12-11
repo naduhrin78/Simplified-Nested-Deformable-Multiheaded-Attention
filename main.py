@@ -6,6 +6,7 @@ import time
 
 from dataloader import CelebADataset
 from network_luna_bottleneck import Luna_Net
+from discriminator import Discriminator
 from loss import CombinedLoss
 
 batch_size = 8
@@ -26,25 +27,55 @@ test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(device)
-model = Luna_Net(in_channels=in_channels, out_channels=out_channels, factor=factor)
-model.to(device)
+
+gen = Luna_Net(in_channels=in_channels, out_channels=out_channels, factor=factor)
+gen.to(device)
+
+disc = Discriminator()
+disc.to(device)
 
 criterion = CombinedLoss().to(device)
-optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+optimizer_G = torch.optim.Adam(gen.parameters(), lr=learning_rate)
+optimizer_D = torch.optim.Adam(disc.parameters(), lr=learning_rate)
 
 for epoch in range(num_epochs):
-    model.train()
+    gen.train()
     cumulative_time = 0
     for i, (images, masks) in enumerate(train_loader):
         start_time = time.time()
         images, masks = images.to(device), masks.to(device)
 
-        _, outputs = model(images, masks)
-        loss = criterion(outputs, images)
+        _, outputs = gen(images, masks)
 
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
+        # Generator
+        discriminator_output_on_generated = disc(outputs)
+
+        generator_loss = criterion(
+            outputs, images, discriminator_output_on_generated, True
+        )
+
+        optimizer_G.zero_grad()
+        generator_loss.backward()
+        optimizer_G.step()
+
+        # Discriminator
+        discriminator_output_on_real = disc(images)
+        discriminator_real_loss = criterion.gan_loss(discriminator_output_on_real, True)
+
+        # Discriminator loss for fake (generated) images
+        discriminator_output_on_generated = disc(
+            outputs.detach()
+        )  # detach to avoid backprop to generator
+        discriminator_fake_loss = criterion.gan_loss(
+            discriminator_output_on_generated, False
+        )
+
+        # Total discriminator loss
+        discriminator_loss = discriminator_real_loss + discriminator_fake_loss
+
+        optimizer_D.zero_grad()
+        discriminator_loss.backward()
+        optimizer_D.step()
 
         end_time = time.time()
         elapsed_time = (end_time - start_time) / 60
@@ -52,16 +83,17 @@ for epoch in range(num_epochs):
         cumulative_time += elapsed_time
         if (i + 1) % 10 == 0:
             print(
-                f"Epoch [{epoch+1}/{num_epochs}], Step [{i+1}/{len(train_loader)}], Loss: {loss.item():.4f}, Time Elapsed: {cumulative_time:.2f} mins"
+                f"Epoch [{epoch+1}/{num_epochs}], Step [{i+1}/{len(train_loader)}], Gen Loss: {generator_loss.item():.4f},\
+                Disc Loss: {discriminator_loss.item():.4f}, Time Elapsed: {cumulative_time:.2f} mins"
             )
             cumulative_time = 0
 
-model.eval()
+gen.eval()
 test_loss = 0
 with torch.no_grad():
     for images, masks in test_loader:
         images, masks = images.to(device), masks.to(device)
-        outputs = model(images)
+        outputs = gen(images)
         loss = criterion(outputs, masks)
         test_loss += loss.item()
 
@@ -71,7 +103,7 @@ print(f"Average Test Loss: {avg_test_loss:.4f}")
 for i, (image, mask) in enumerate(zip(images, masks)):
     if i >= 10:
         break
-    inpainted_img = model(image.unsqueeze(0).to(device))
+    inpainted_img = gen(image.unsqueeze(0).to(device))
     inpainted_img = inpainted_img.squeeze(0).cpu().detach()
     plt.figure()
     plt.subplot(1, 2, 1)

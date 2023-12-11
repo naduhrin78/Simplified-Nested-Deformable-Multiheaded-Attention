@@ -98,17 +98,41 @@ class EdgeLoss(nn.Module):
         return edge_loss / 3.0
 
 
+class GANLoss(nn.Module):
+    def __init__(self, target_real_label=1.0, target_fake_label=0.0):
+        super(GANLoss, self).__init__()
+        self.register_buffer("real_label", torch.tensor(target_real_label))
+        self.register_buffer("fake_label", torch.tensor(target_fake_label))
+        self.loss = nn.BCEWithLogitsLoss()
+
+    def get_target_tensor(self, prediction, target_is_real):
+        if target_is_real:
+            target_tensor = self.real_label
+        else:
+            target_tensor = self.fake_label
+        return target_tensor.expand_as(prediction)
+
+    def forward(self, prediction, target_is_real):
+        target_tensor = self.get_target_tensor(prediction, target_is_real)
+        return self.loss(prediction, target_tensor)
+
+
 class CombinedLoss(nn.Module):
-    def __init__(self, weight_l1=10, weight_edge=2, weight_perceptual=3):
+    def __init__(
+        self, weight_l1=10, weight_edge=2, weight_perceptual=3, weight_gan=0.1
+    ):
         super(CombinedLoss, self).__init__()
         self.weight_l1 = weight_l1
         self.weight_edge = weight_edge
         self.weight_perceptual = weight_perceptual
+        self.weight_gan = weight_gan
+
         self.l1_loss = nn.L1Loss()
         self.edge_loss = EdgeLoss()
         self.perceptual_loss = VGGPerceptualLoss()
+        self.gan_loss = GANLoss()
 
-    def forward(self, output, target):
+    def forward(self, output, target, discriminator_output=None, target_is_real=None):
         loss_l1 = self.l1_loss(output, target)
         loss_edge = self.edge_loss(output, target)
         loss_perceptual = self.perceptual_loss(output, target)
@@ -117,4 +141,9 @@ class CombinedLoss(nn.Module):
             + self.weight_edge * loss_edge
             + self.weight_perceptual * loss_perceptual
         )
+
+        if discriminator_output is not None and target_is_real is not None:
+            loss_gan = self.gan_loss(discriminator_output, target_is_real)
+            total_loss += self.weight_gan * loss_gan
+
         return total_loss

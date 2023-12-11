@@ -1,8 +1,9 @@
 import numpy as np
 from PIL import Image
 import cv2
-import torch
-import torchvision
+from sendgrid import SendGridAPIClient
+from sendgrid.helpers.mail import Mail
+import config
 
 
 class BinarizeMask(object):
@@ -32,3 +33,26 @@ def save_img(image_tensor, filename):
     image_numpy = image_numpy.astype(np.uint8)
     cv2.imwrite(filename, image_numpy)
     print("Image saved as {}".format(filename), end="\r")
+
+
+def send_nan_alert(loss_name, output, target, discriminator_output, target_is_real):
+    # Placeholder for SendGrid email sending logic
+    print(
+        f"Alert: {loss_name} went to NaN. Email sent to nanubala@tcd.ie and meti@tcd.ie"
+    )
+
+    message = Mail(
+        from_email="your_email@example.com",
+        to_emails=["nanubala@tcd.ie", "meti@tcd.ie"],
+        subject=f"NaN Alert: {loss_name}",
+        plain_text_content=f"{loss_name} went to NaN. Here are the parameters: output={output}, target={target}, discriminator_output={discriminator_output}, target_is_real={target_is_real}",
+    )
+
+    try:
+        sg = SendGridAPIClient(config.SENDGRID_API_KEY)
+        response = sg.send(message)
+        print(response.status_code)
+        print(response.body)
+        print(response.headers)
+    except Exception as e:
+        print(e.message)
