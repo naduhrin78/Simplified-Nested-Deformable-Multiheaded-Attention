@@ -502,7 +502,8 @@ class Luna_Net(nn.Module):
 
         d1 = self.Conv_1x1(d2)
 
-        second_masked_img = in1 * (1 - in2) + d1 * in2
+        second_masked_img = in1 + d1 * (1 - in2)
+
         p2_x = torch.cat((second_masked_img, in2), dim=1)
 
         p2_x1 = self.p2_Conv1(p2_x)

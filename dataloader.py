@@ -64,7 +64,7 @@ class CelebADataset(Dataset):
 
         corrupted_image = image * mask
 
-        return corrupted_image, mask
+        return corrupted_image, image, mask
 
 
 def show_image(image, title="Masked Image"):

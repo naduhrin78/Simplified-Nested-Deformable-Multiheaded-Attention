@@ -26,7 +26,7 @@ train_dataset, test_dataset = random_split(dataset, [train_size, test_size])
 train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
 test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 
-test_images, test_masks = next(iter(test_loader))
+test_images, test_targets, test_masks = next(iter(test_loader))
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(device)
@@ -56,9 +56,9 @@ else:
 for epoch in range(start_epoch, num_epochs):
     gen.train()
     cumulative_time = 0
-    for i, (images, masks) in enumerate(train_loader):
+    for i, (images, targets, masks) in enumerate(train_loader):
         start_time = time.time()
-        images, masks = images.to(device), masks.to(device)
+        images, targets, masks = images.to(device), targets.to(device), masks.to(device)
 
         _, outputs = gen(images, masks)
 
@@ -66,7 +66,7 @@ for epoch in range(start_epoch, num_epochs):
         discriminator_output_on_generated = disc(outputs)
 
         generator_loss = criterion(
-            outputs, images, discriminator_output_on_generated, True
+            outputs, targets, discriminator_output_on_generated, True
         )
 
         optimizer_G.zero_grad()
@@ -74,7 +74,7 @@ for epoch in range(start_epoch, num_epochs):
         optimizer_G.step()
 
         # Discriminator
-        discriminator_output_on_real = disc(images)
+        discriminator_output_on_real = disc(targets)
         discriminator_real_loss = criterion.gan_loss(discriminator_output_on_real, True)
 
         # Discriminator loss for fake (generated) images
@@ -115,7 +115,7 @@ for epoch in range(start_epoch, num_epochs):
             checkpoint_path,
         )
 
-    if (epoch + 1) % 5 == 0:
+    if (epoch + 1) % 1 == 0:
         gen.eval()
         with torch.no_grad():
             for i, (image, mask) in enumerate(zip(test_images, test_masks)):
