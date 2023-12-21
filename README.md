@@ -1,5 +1,6 @@
 # Simplified Nested Deformable Multi-head Attention for Facial Image Inpainting
-![architecture](https://github.com/naduhrin78/Simplified-Nested-Deformable-Multiheaded-Attention/assets/19820757/163609ef-112a-42aa-a2c7-09cc0f7e1d84)
+![architecture](https://github.com/naduhrin78/Simplified-Nested-Deformable-Multiheaded-Attention/assets/19820757/6b5c65d5-2d85-4056-b245-fda200eeda07)
+
 
 ## Prerequisites
 - Python 3.6+
