@@ -1,4 +1,6 @@
 
 __pycache__/
 
-dataset/
+dataset/CelebA-HQ/*.jpg
+dataset/irregular_masks/*.png
+outputs/*.png

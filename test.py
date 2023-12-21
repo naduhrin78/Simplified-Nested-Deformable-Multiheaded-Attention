@@ -5,7 +5,7 @@ import torch
 import numpy as np
 from skimage.metrics import peak_signal_noise_ratio, structural_similarity
 import numpy as np
-
+import matplotlib.pyplot as plt
 
 from dataloader import CelebADataset
 from network_luna_bottleneck import Luna_Net
@@ -83,6 +83,7 @@ def compute_metrics(corrupted_batch, normal_batch):
     return psnr, ssim, l1_norm
 
 
+result = 1
 for corrupted_image, normal_image, masks in test_loader:
     _, outputs = gen(corrupted_image.to(device), masks.to(device))
     psnr, ssim, l1_norm = compute_metrics(outputs, normal_image.to(device))
@@ -90,6 +91,27 @@ for corrupted_image, normal_image, masks in test_loader:
     total_psnr += psnr
     total_ssim += ssim
     total_l1 += l1_norm
+
+    for i, (image, target, mask) in enumerate(
+        zip(corrupted_image, normal_image, masks)
+    ):
+        _, inpainted_img = gen(
+            image.unsqueeze(0).to(device), mask.unsqueeze(0).to(device)
+        )
+        inpainted_img = inpainted_img.squeeze(0).cpu().detach()
+        plt.figure()
+        plt.subplot(1, 3, 1)
+        plt.imshow(np.transpose(image.cpu().numpy(), (1, 2, 0)))
+        plt.title("Corrupted Image")
+        plt.subplot(1, 3, 2)
+        plt.imshow(np.transpose(inpainted_img.numpy(), (1, 2, 0)))
+        plt.title("Inpainted Image")
+        plt.subplot(1, 3, 3)
+        plt.imshow(np.transpose(target.numpy(), (1, 2, 0)))
+        plt.title("Ground Truth")
+        plt.savefig(f"result_image_{i}.png")
+        plt.close()
+        result += 1
 
 num_images = len(test_loader)
 avg_psnr = total_psnr / num_images
