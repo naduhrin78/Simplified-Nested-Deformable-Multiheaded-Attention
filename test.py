@@ -1,43 +1,102 @@
-from __future__ import print_function
-import argparse
-import os
-import cv2
-
-import time
 import torch
-import torchvision.transforms as transforms
-from torch.utils.data import DataLoader
-from data import get_test_set
-
-from utils import is_image_file, load_img, save_img
-torch.backends.cudnn.benchmark = True
-# Testing settings
-parser = argparse.ArgumentParser(description='NDMAL-testing-code')
-parser.add_argument('--dataset', default='./dataset/', required=False, help='facades')
-parser.add_argument('--save_path', default='results', required=False, help='facades')
-parser.add_argument('--checkpoints_path', default='checkpoints/', required=False, help='facades')
-parser.add_argument('--test_batch_size', type=int, default=1, help='testing batch size')
-parser.add_argument('--cuda', action='store_false', help='use cuda')
-opt = parser.parse_args()
-print(opt)
-
-if not os.path.exists(opt.save_path+'/'):
-        os.makedirs(opt.save_path+'/')
+from torch.utils.data import DataLoader, Subset
+import os
+import torch
+import numpy as np
+from skimage.metrics import peak_signal_noise_ratio, structural_similarity
+import numpy as np
+from scipy.linalg import sqrtm
 
 
-device = torch.device("cuda:0" if opt.cuda else "cpu")
+from dataloader import CelebADataset
+from network_luna_bottleneck import Luna_Net
 
-G_path = opt.checkpoints_path+"netG_model.pth"
-my_net = torch.load(G_path).to(device)  
+batch_size = 32
+learning_rate = 2 * 10e-4
+num_epochs = 20
+dataset_path = "dataset/CelebA-HQ"
+mask_path = "dataset/irregular_masks"
+in_channels = 4
+out_channels = 3
+factor = 8
 
-test_set = get_test_set(opt.dataset)
-testing_data_loader = DataLoader(dataset=test_set, batch_size=opt.test_batch_size, shuffle=False)
+dataset = CelebADataset(image_dir=dataset_path, mask_dir=mask_path)
+dataset_size = len(dataset)
+train_size = int(0.9 * dataset_size)
+test_size = dataset_size - train_size
+
+indices = list(range(dataset_size))
+train_indices = indices[:train_size]
+test_indices = indices[train_size:]
+
+_, test_dataset = Subset(dataset, train_indices), Subset(dataset, test_indices)
+test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+print(device)
+
+gen = Luna_Net(in_channels=in_channels, out_channels=out_channels, factor=factor)
+gen.to(device)
+
+# Checkpoints for saving our ass
+checkpoint_path = "latest_checkpoint.pth"
+if os.path.isfile(checkpoint_path):
+    checkpoint = torch.load(checkpoint_path)
+    gen.load_state_dict(checkpoint["gen_state_dict"])
+    gen.eval()
+else:
+    exit("Failed to locate checkpoint")
+
+total_psnr, total_ssim, total_l1 = 0, 0, 0
 
 
-for iteration_test, batch in enumerate(testing_data_loader,1):
-    input1, mask_test, target, image_filename = batch[0].to(device), batch[1].to(device), batch[2].to(device), batch[3]
+def compute_metrics(corrupted_batch, normal_batch):
+    psnr, ssim, l1_norm = 0, 0, 0
 
-    prediction, prediction2 = my_net(input1, mask_test)
-    prediction_img2 = prediction2.detach().squeeze(0).cpu()    
-    save_img(prediction_img2, "./{}/{}".format(opt.save_path+'/',image_filename[0]))
- 
+    corrupted_batch = corrupted_batch.permute(0, 2, 3, 1).cpu().detach().numpy()
+    normal_batch = normal_batch.permute(0, 2, 3, 1).cpu().detach().numpy()
+
+    for corrupted, normal in zip(corrupted_batch, normal_batch):
+        normal = normal * 255
+        corrupted = corrupted * 255
+
+        # PSNR
+        psnr += peak_signal_noise_ratio(
+            normal.astype(np.uint8), corrupted.astype(np.uint8)
+        )
+
+        # SSIM
+        ssim += structural_similarity(
+            normal.astype(np.uint8),
+            corrupted.astype(np.uint8),
+            multichannel=True,
+            channel_axis=2,
+        )
+
+        # L1 Norm
+        l1_norm += np.mean(np.abs(normal - corrupted))
+
+    num_images = corrupted_batch.shape[0]
+    psnr /= num_images
+    ssim /= num_images
+    l1_norm /= num_images
+
+    return psnr, ssim, l1_norm
+
+
+for corrupted_image, normal_image, masks in test_loader:
+    _, outputs = gen(corrupted_image.to(device), masks.to(device))
+    psnr, ssim, l1_norm = compute_metrics(outputs, normal_image.to(device))
+
+    total_psnr += psnr
+    total_ssim += ssim
+    total_l1 += l1_norm
+
+num_images = len(test_loader)
+avg_psnr = total_psnr / num_images
+avg_ssim = total_ssim / num_images
+avg_l1 = total_l1 / num_images
+
+print("PSNR:", avg_psnr)
+print("SSIM:", avg_ssim)
+print("L1 Norm:", avg_l1)

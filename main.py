@@ -1,5 +1,5 @@
 import torch
-from torch.utils.data import DataLoader, random_split
+from torch.utils.data import DataLoader, Subset
 import matplotlib.pyplot as plt
 import numpy as np
 import time
@@ -20,9 +20,17 @@ out_channels = 3
 factor = 8
 
 dataset = CelebADataset(image_dir=dataset_path, mask_dir=mask_path)
-train_size = int(0.9 * len(dataset))
-test_size = len(dataset) - train_size
-train_dataset, test_dataset = random_split(dataset, [train_size, test_size])
+dataset_size = len(dataset)
+train_size = int(0.9 * dataset_size)
+test_size = dataset_size - train_size
+
+indices = list(range(dataset_size))
+train_indices = indices[:train_size]
+test_indices = indices[train_size:]
+
+train_dataset, test_dataset = Subset(dataset, train_indices), Subset(
+    dataset, test_indices
+)
 train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
 test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 
@@ -134,15 +142,3 @@ for epoch in range(start_epoch, num_epochs):
                 plt.title("Inpainted Image")
                 plt.savefig(f"epoch_{epoch+1}_image_{i}.png")
                 plt.close()
-
-gen.eval()
-test_loss = 0
-with torch.no_grad():
-    for images, masks in test_loader:
-        images, masks = images.to(device), masks.to(device)
-        outputs = gen(images)
-        loss = criterion(outputs, masks)
-        test_loss += loss.item()
-
-avg_test_loss = test_loss / len(test_loader)
-print(f"Average Test Loss: {avg_test_loss:.4f}")
