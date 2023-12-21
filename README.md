@@ -8,15 +8,18 @@
 ## Usage
 
 Keep your dataset by placing images like:
+
+```
 dataset
-    ├── CelebA-HQ
-    │   ├── 1.png 
-    │   ├── 2.png 
-    │   │   └── ...
-    ├── irregular_masks
-    │   ├── 1.png 
-    │   ├── 2.png 
-    │   └── ...    
+├── CelebA-HQ
+│ ├── 1.png
+│ ├── 2.png
+│ └── ...
+└── irregular_masks
+├── 1.png
+├── 2.png
+└── ...
+```
 
 ## Checkpoints:
 
