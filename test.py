@@ -5,7 +5,6 @@ import torch
 import numpy as np
 from skimage.metrics import peak_signal_noise_ratio, structural_similarity
 import numpy as np
-from scipy.linalg import sqrtm
 
 
 from dataloader import CelebADataset
